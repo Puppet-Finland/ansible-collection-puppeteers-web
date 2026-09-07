@@ -1,0 +1,18 @@
+namespace: puppeteers
+name: web
+version: 0.10.0
+readme: README.md
+authors:
+- Samuli Seppänen <samuli.seppanen@puppeteers.net>
+- Ricky Cousins <ricky.cousins@puppeteers.net>
+description: Various roles related to Web servers
+license:
+- BSD-2-Clause
+tags:
+- nginx
+- redhat
+
+repository: https://github.com/Puppet-Finland/ansible-collection-puppeteers-web.git
+documentation: https://github.com/Puppet-Finland/ansible-collection-puppeteers-web/README.md
+homepage: https://github.com/Puppet-Finland/ansible-collection-puppeteers-web
+issues: https://github.com/Puppet-Finland/ansible-collection-puppeteers-web/issues
