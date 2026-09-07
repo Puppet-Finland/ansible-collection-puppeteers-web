@@ -1,0 +1,23 @@
+{{ ansible_managed | comment }}
+
+server {
+    listen 443 ssl;
+    server_name {{ item.name }}.{{ puppeteers_web_reverse_proxy_base_domain }};
+
+    ssl_certificate     "{{ puppeteers_web_reverse_proxy_tls_cert_file }}";
+    ssl_certificate_key "{{ puppeteers_web_reverse_proxy_tls_key_file }}";
+
+{% if item.basic_auth_users is defined %}
+    auth_basic "{{ item.name | capitalize }}";
+    auth_basic_user_file {{ puppeteers_web_reverse_proxy_htpasswd_dir }}/{{ item.name }};
+
+{% endif %}
+    location / {
+        proxy_pass http://127.0.0.1:{{ item.port }};
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 300s;
+    }
+}
