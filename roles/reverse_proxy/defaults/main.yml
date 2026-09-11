@@ -1,0 +1,6 @@
+---
+puppeteers_web_reverse_proxy_tls_cert_file: /etc/pki/tls/certs/monit-fullchain.crt
+puppeteers_web_reverse_proxy_tls_key_file: /etc/pki/tls/private/monit.key
+puppeteers_web_reverse_proxy_htpasswd_dir: /etc/nginx/auth
+puppeteers_web_reverse_proxy_manage_firewalld: false
+puppeteers_web_reverse_proxy_firewalld_zone: public

@@ -1,0 +1,130 @@
+---
+- name: Assert vars exists
+  ansible.builtin.assert:
+    that:
+      - puppeteers_web_reverse_proxy_services is defined
+      - puppeteers_web_reverse_proxy_fullchain_content is defined
+      - puppeteers_web_reverse_proxy_fullchain_content is string
+      - puppeteers_web_reverse_proxy_fullchain_key_content is defined
+      - puppeteers_web_reverse_proxy_base_domain is defined
+      - puppeteers_web_reverse_proxy_base_domain is string
+      - puppeteers_web_reverse_proxy_tls_cert_file is defined
+      - puppeteers_web_reverse_proxy_tls_cert_file is string
+      - puppeteers_web_reverse_proxy_tls_key_file is defined
+      - puppeteers_web_reverse_proxy_tls_key_file is string
+      - puppeteers_web_reverse_proxy_htpasswd_dir is defined
+      - puppeteers_web_reverse_proxy_htpasswd_dir is string
+      - puppeteers_web_reverse_proxy_manage_firewalld is defined
+      - puppeteers_web_reverse_proxy_manage_firewalld is boolean
+      - puppeteers_web_reverse_proxy_firewalld_zone is defined
+      - puppeteers_web_reverse_proxy_firewalld_zone is string
+
+- name: Ensure NGINX is Installed
+  ansible.builtin.package:
+    name: nginx
+    state: installed
+
+- name: Allow HTTP and HTTPS traffic through firewalld
+  ansible.posix.firewalld:
+    service: "{{ item }}"
+    permanent: true
+    state: enabled
+    immediate: true
+    zone: "{{ puppeteers_web_reverse_proxy_firewalld_zone }}"
+  loop:
+    - http
+    - https
+  when: "{{ puppeteers_web_reverse_proxy_manage_firewalld }}"
+
+- name: Ensure package python3-passlib installed
+  ansible.builtin.package:
+    name: python3-passlib
+    state: installed
+
+- name: Ensure httpasswd directory exists
+  ansible.builtin.file:
+    path: "{{ puppeteers_web_reverse_proxy_htpasswd_dir }}"
+    state: directory
+    owner: root
+    group: nginx
+    mode: "0750"
+
+- name: Populate htpasswd files
+  community.general.htpasswd:
+    path: "{{ puppeteers_web_reverse_proxy_htpasswd_dir }}/{{ item.0.name }}"
+    name: "{{ item.1.name }}"
+    password: "{{ item.1.password }}"
+    owner: root
+    group: nginx
+    mode: "0640"
+    hash_scheme: bcrypt
+  loop: "{{ puppeteers_web_reverse_proxy_services | subelements('basic_auth_users', skip_missing=True) }}"
+  notify: Restart nginx
+  no_log: true
+
+- name: Write Fullchain SSL Certificate
+  ansible.builtin.copy:
+    dest: "{{ puppeteers_web_reverse_proxy_tls_cert_file }}"
+    content: "{{ puppeteers_web_reverse_proxy_fullchain_content }}"
+    owner: root
+    group: root
+    mode: '0644'
+    seuser: system_u
+    setype: cert_t
+  notify: Restart nginx
+
+- name: Write SSL Key
+  ansible.builtin.copy:
+    dest: "{{ puppeteers_web_reverse_proxy_tls_key_file }}"
+    content: "{{ puppeteers_web_reverse_proxy_fullchain_key_content }}"
+    owner: root
+    group: root
+    mode: '0600'
+    seuser: system_u
+    setype: cert_t
+  no_log: true
+  notify: Restart nginx
+
+- name: Deploy base nginx configuration
+  ansible.builtin.copy:
+    src: nginx.conf
+    dest: /etc/nginx/nginx.conf
+    owner: root
+    group: root
+    mode: "0644"
+    backup: true
+  notify:
+    - Validate nginx configuration
+    - Restart nginx
+
+- name: Deploy vhost configurations
+  ansible.builtin.template:
+    src: vhost.conf.j2
+    dest: "/etc/nginx/conf.d/{{ item.name }}.conf"
+    owner: root
+    group: root
+    mode: "0644"
+  loop: "{{ puppeteers_web_reverse_proxy_services }}"
+  loop_control:
+    label: "{{ item.name }}"
+  notify:
+    - Validate nginx configuration
+    - Restart nginx
+
+- name: Deploy reverse proxy vhosts
+  ansible.builtin.template:
+    src: vhost.conf.j2
+    dest: "/etc/nginx/conf.d/{{ item.name }}.conf"
+    owner: root
+    group: root
+    mode: "0644"
+  loop: "{{ puppeteers_web_reverse_proxy_services }}"
+  notify:
+    - Validate nginx configuration
+    - Restart nginx
+
+- name: Ensure nginx is enabled and running
+  ansible.builtin.systemd:
+    name: nginx
+    state: started
+    enabled: true
