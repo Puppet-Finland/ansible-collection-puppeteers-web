@@ -123,6 +123,13 @@
     - Validate nginx configuration
     - Restart nginx
 
+- name: Set httpd_can_network_connect boolean (SELinux only)
+  ansible.posix.seboolean:
+    name: httpd_can_network_connect
+    state: true
+    persistent: true
+  when: ansible_selinux.status == "enabled"
+
 - name: Ensure nginx is enabled and running
   ansible.builtin.systemd:
     name: nginx
